@@ -25,7 +25,7 @@
 
 The hero dynamics are
 \begin{equation}
-	\dot x_h = \beta v_h, \quad \dot v_h = \beta u
+	\dot x_h = \beta v_h, \quad \dot v_h = \beta (u - f v_h)
 \end{equation}
 and the enemy follows
 \begin{equation}
@@ -33,7 +33,7 @@ and the enemy follows
 \end{equation}
 where $\beta$ is the refresh rate of the monitor.
 
-We consider the relative dynamics $x_r = x_h - x_e$ so that $\dot x_r = \beta (v_h - v_e)$ and $\ddot x_r = \beta^2 u$ and the radial transformation $r = \| x_r \|$. The relative radius dynamics become
+We consider the relative dynamics $x_r = x_h - x_e$ so that $\dot x_r = \beta (v_h - v_e)$ and $\ddot x_r = \beta^2 (u - f v_h)$ and the radial transformation $r = \| x_r \|$. The relative radius dynamics become
 \begin{equation}
 \begin{aligned}
 	\dot r & = \frac{\left\langle x_r, \dot x_r \right\rangle}{r}, \\
@@ -58,8 +58,13 @@ where $\bar u$ is a maximal input.
 
 Instead plugging in $\ddot r$ from above, the constraint to satisfy whenever $\dot r < 0$ becomes
 \begin{equation}
-	\dot h + \alpha h = \alpha h + \dot r + \frac{\dot r^3}{r \bar u} - \frac{\dot r \| \dot x_r\|^2}{r \bar u} - \frac{\dot r \beta^2}{\bar u} \frac{\left\langle x_r, u \right\rangle}{r} \geq 0.
+	\dot h + \alpha h = \alpha h + \dot r + \frac{\dot r^3}{r \bar u} - \frac{\dot r \| \dot x_r\|^2}{r \bar u} - \frac{\dot r}{\bar u} \frac{\left\langle x_r, \ddot x_r \right\rangle}{r} \geq 0.
 \end{equation}
-That is, the component $\frac{\left\langle x_r, u \right\rangle}{r}$ of the input along the relative direction must be larger than a lower bound. We can create a minimally invasive safety filter by selecting the closest input that satisfies this inequality.
+We can expand the term involving $\ddot r$ and rearrange to obtain
+\begin{equation}
+	\alpha h + \dot r + \frac{\dot r^3}{r \bar u} - \frac{\dot r \| \dot x_r\|^2}{r \bar u} + \frac{f \dot r \beta^2}{\bar u} \frac{\left\langle x_r, v_h \right\rangle}{r} - \frac{\dot r \beta^2}{\bar u} \frac{\left\langle x_r, u \right\rangle}{r} \geq 0.
+\end{equation}
+
+That is, the component $\frac{\left\langle x_r, u \right\rangle}{r}$ of the input along the relative direction must be larger than a lower bound. We can create a minimally invasive safety filter by selecting the closest input that satisfies this inequality (remark that $\dot r$ is negative whenever this is so this is a lower bound on $u$).
 
 \end{document}

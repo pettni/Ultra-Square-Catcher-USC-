@@ -106,7 +106,7 @@
       b_alpha = 10
       kd = 0.6
       kp = 3
-      throttle_autopilot = false
+      throttle_autopilot = true
 
       ennemi = {
         x: canvas.width / 2,
@@ -151,18 +151,6 @@
 
       function update() {
 
-        var norme = distance(hero.y, hero.x, ennemi.y, ennemi.x)
-
-        //ennemi
-        var vy = (hero.y - ennemi.y) * vitesseEnnemi / norme
-        var vx = (hero.x - ennemi.x) * vitesseEnnemi / norme
-
-        if (score >= 10) {
-          ennemi.y += vy
-          ennemi.x += vx
-          vitesseEnnemi = score / adaptationEnnemi
-        }
-
         // Check buttons
         var barrier_btn = document.getElementById('barrier_btn')
         if (barrier_btn)
@@ -185,6 +173,11 @@
         if (kd_slid)
           kd = kd_slid.value
 
+        var norme = distance(hero.y, hero.x, ennemi.y, ennemi.x)
+
+        //ennemi
+        var vy = (hero.y - ennemi.y) * vitesseEnnemi / norme
+        var vx = (hero.x - ennemi.x) * vitesseEnnemi / norme
 
         if (autopilot_active) {
           if (spawn > PowerUpspawnRate)
@@ -208,6 +201,12 @@
         
         hero.x += hero.speed.x
         hero.y += hero.speed.y
+
+        if (score >= 10) {
+          ennemi.y += vy
+          ennemi.x += vx
+          vitesseEnnemi = score / adaptationEnnemi
+        }
 
         if (hero.speed.x > speedLimit) {
           hero.speed.x = speedLimit
@@ -313,16 +312,41 @@
       }
 
       function autopilot(rew) {
-        x_rel = (rew.x - hero.x) / canvas.width
-        y_rel = (rew.y - hero.y) / canvas.width
-        vx_rel = refreshrate * (-hero.speed.x) / canvas.width
-        vy_rel = refreshrate * (-hero.speed.y) / canvas.width
+
+        if (false) { // look around corners
+          x_rel1 = (rew.x - hero.x) / canvas.width
+          y_rel1 = (rew.y - hero.y) / canvas.width
+          x_rel2 = (rew.x - (hero.x - canvas.width)) / canvas.width
+          y_rel2 = (rew.y - (hero.y - canvas.width)) / canvas.width
+
+          if (Math.abs(x_rel1) < Math.abs(x_rel2)) {
+            x_rel = x_rel1
+            vx_rel = refreshrate * (-hero.speed.x) / canvas.width
+          } else {
+            x_rel = x_rel2
+            vx_rel = refreshrate * (hero.speed.x) / canvas.width
+          }
+
+          if (Math.abs(y_rel1) < Math.abs(y_rel2)) {
+            y_rel = y_rel1
+            vy_rel = refreshrate * (-hero.speed.y) / canvas.width
+          } else {
+            y_rel = y_rel2
+            vy_rel = refreshrate * (hero.speed.y) / canvas.width
+          }
+        } else {
+          x_rel = (rew.x - hero.x) / canvas.width
+          y_rel = (rew.y - hero.y) / canvas.width
+          vx_rel = refreshrate * (-hero.speed.x) / canvas.width
+          vy_rel = refreshrate * (-hero.speed.y) / canvas.width
+        }
 
         ax = kp*x_rel + kd*vx_rel
         ay = kp*y_rel + kd*vy_rel
 
         if (throttle_autopilot)
-          return [Math.min(accelerationMax, Math.max(-accelerationMax, ax)), Math.min(accelerationMax, Math.max(-accelerationMax, ay))]
+          return [Math.min(accelerationMax, Math.max(-accelerationMax, ax)), 
+                  Math.min(accelerationMax, Math.max(-accelerationMax, ay))]
         else 
           return [ax, ay]
       }
@@ -347,13 +371,13 @@
           var h = r - Math.pow(dr, 2) / (2 * accelerationMax) - min_radius
 
           // Barrier constraint
-          var a = b_alpha * h + dr + (Math.pow(dr, 3) - dr * Math.pow(norm(x_rel, y_rel), 2)) / (r * accelerationMax)
+          var a = b_alpha * h + dr + (Math.pow(dr, 3) - dr * Math.pow(norm(x_rel, y_rel), 2)) / (r * accelerationMax) + (1 - friction) * dr * Math.pow(refreshrate, 2) * inner(x_rel, y_rel, hero.speed.x, hero.speed.y) / (r * accelerationMax * canvas.width)
           var b = -Math.pow(refreshrate, 2)* dr / (accelerationMax * canvas.width)
 
-          u_r = Math.max(-a/b, u_r)
-          // u_r = Math.min(u_r, 2*accelerationMax)
-        } else {
-          var h = 0
+          u_r = Math.max(-a/(b*(1 - friction)), u_r)
+          u_r = Math.min(u_r, accelerationMax)
+        } else if (r <= min_radius) {
+          u_r = accelerationMax
         }
 
         // New hero acceleration
