@@ -50,9 +50,9 @@
 
     <tr>
       <td>
-        Minimal distance:
+        Safety distance:
         <form name="rad_form">
-          <input id="rad" name="rad_name" name="rad_slider" type="range" min="0.025" max="0.4" value="0.075" class="slider" step="0.025" oninput="rad_output.value = rad.value">
+          <input id="rad" name="rad_name" name="rad_slider" type="range" min="0.05" max="0.4" value="0.075" class="slider" step="0.025" oninput="rad_output.value = rad.value">
           <output id="rad_output" name="rad_output_name">0.075</output>
         </form>
       </td>
@@ -106,7 +106,6 @@
       b_alpha = 10
       kd = 0.6
       kp = 3
-      throttle_autopilot = true
 
       ennemi = {
         x: canvas.width / 2,
@@ -344,15 +343,16 @@
         ax = kp*x_rel + kd*vx_rel
         ay = kp*y_rel + kd*vy_rel
 
-        if (throttle_autopilot)
-          return [Math.min(accelerationMax, Math.max(-accelerationMax, ax)), 
-                  Math.min(accelerationMax, Math.max(-accelerationMax, ay))]
-        else 
-          return [ax, ay]
+        na = norm(ax, ay)
+        if (na > accelerationMax) {
+          ax = accelerationMax * ax / na
+          ay = accelerationMax * ay / na
+        }
+
+        return [ax, ay]
       }
 
       function barrier(vx_enemy, vy_enemy) {
-        // Parameters       
         x_rel = (hero.x - ennemi.x) / canvas.width
         y_rel = (hero.y - ennemi.y) / canvas.width
         vx_rel = refreshrate * (hero.speed.x - vx_enemy) / canvas.width
