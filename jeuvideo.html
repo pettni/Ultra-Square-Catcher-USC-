@@ -8,6 +8,10 @@
 
 <body style="text-align: center">
   <canvas width="700" height="700">error</canvas>
+  <div class="checkbox">
+    <label><input id="barrier_btn" type="checkbox" value="">Activate barrier</label>
+    <label><input id="autopilot_btn" type="checkbox" value="">Activate autopilot</label>    
+  </div>
 
   <script>
     (function () {
@@ -37,6 +41,15 @@
       powerUpSpeed = 0.3
       adaptationEnnemi = 20
       PowerUpspawnRate = 0.8
+
+      // new variables
+      autopilot_active = false
+      barrier_active = false
+      min_radius = 0.07
+      refreshrate = 60
+      b_alpha = 10
+      kd = 0.6
+      kp = 3
 
       ennemi = {
         x: canvas.width / 2,
@@ -97,9 +110,34 @@
           vitesseEnnemi = score / adaptationEnnemi
         }
 
-        //acceleration
-        hero.speed.x += hero.acceleration.x
-        hero.speed.y += hero.acceleration.y
+        // Check buttons
+        var barrier_btn = document.getElementById('barrier_btn')
+        if (barrier_btn)
+          barrier_active = barrier_btn.checked        
+        var autopilot_button = document.getElementById('autopilot_btn')
+        if (autopilot_button)
+          autopilot_active = autopilot_button.checked
+
+        if (autopilot_active) {
+          if (spawn > PowerUpspawnRate)
+            autopilot_accel = autopilot(powerUp) 
+          else
+            autopilot_accel = autopilot(reward)
+
+          hero.acceleration.x = autopilot_accel[0]
+          hero.acceleration.y = autopilot_accel[1]
+        }
+
+        // Call barrier
+        if (barrier_active) {
+          barrier_accel = barrier(vx, vy)
+          hero.speed.x += barrier_accel[0]
+          hero.speed.y += barrier_accel[1]
+        } else {
+          hero.speed.x += hero.acceleration.x
+          hero.speed.y += hero.acceleration.y
+        }
+        
         hero.x += hero.speed.x
         hero.y += hero.speed.y
 
@@ -180,6 +218,13 @@
           ctx.fillStyle = 'cyan'
           ctx.fillRect(powerUp.x, powerUp.y, powerUp.width, powerUp.height)
         }
+
+        if (barrier_active) {
+          ctx.beginPath();
+          ctx.arc(hero.x+hero.width/2, hero.y+hero.width/2, min_radius*canvas.width, 0, 2*Math.PI, false)
+          ctx.strokeStyle="green"
+          ctx.stroke();
+        }
       }
 
       update()
@@ -189,6 +234,58 @@
           yin = h.y + h.height >= r.y && h.y <= r.y + r.height
 
         return xin && yin
+      }
+
+      function inner(x1, y1, x2, y2) {
+        return x1 * x2 + y1 * y2
+      }
+
+      function norm(x, y) {
+        return Math.sqrt(inner(x,y,x,y))
+      }
+
+      function autopilot(rew) {
+        x_rel = (rew.x - hero.x) / canvas.width
+        y_rel = (rew.y - hero.y) / canvas.width
+        vx_rel = refreshrate * (-hero.speed.x) / canvas.width
+        vy_rel = refreshrate * (-hero.speed.y) / canvas.width
+
+        return [kp*x_rel + kd*vx_rel, kp*y_rel + kd*vy_rel]
+      }
+
+      function barrier(vx_enemy, vy_enemy) {
+        // Parameters
+        var umax = accelerationMax    
+        
+        x_rel = (hero.x - ennemi.x) / canvas.width
+        y_rel = (hero.y - ennemi.y) / canvas.width
+        vx_rel = refreshrate * (hero.speed.x - vx_enemy) / canvas.width
+        vy_rel = refreshrate * (hero.speed.y - vy_enemy) / canvas.width
+
+        var r = norm(x_rel, y_rel)
+        var dr = inner(x_rel, y_rel, vx_rel, vy_rel)/r
+
+        // Divide acceleration into components
+        var u_r = inner(x_rel, y_rel, hero.acceleration.x, hero.acceleration.y)/r
+        var u_t_x = hero.acceleration.x - u_r * x_rel / r
+        var u_t_y = hero.acceleration.y - u_r * y_rel / r
+
+        // Barrier value
+        if (dr < 0) {
+          var h = r - Math.pow(dr, 2) / (2 * umax) - min_radius
+
+          // Barrier constraint
+          var a = b_alpha * h + dr + (Math.pow(dr, 3) - dr * Math.pow(norm(x_rel, y_rel), 2)) / (r * umax)
+          var b = -Math.pow(refreshrate, 2)* dr / (umax * canvas.width)
+
+          u_r = Math.max(-a/b, u_r)
+          u_r = Math.min(u_r, umax)
+        } else {
+          var h = 0
+        }
+
+        // New hero acceleration
+        return [u_t_x + u_r * x_rel/r, u_t_y + u_r * y_rel/r]
       }
 
       function keyDown(event) {
