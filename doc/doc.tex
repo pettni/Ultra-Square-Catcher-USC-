@@ -1,0 +1,65 @@
+%!TEX program = xelatex
+\documentclass[letterpaper, 12pt]{article}
+
+\usepackage{amsmath, amsthm, amssymb, dsfont, xcolor, booktabs}
+\usepackage[colorlinks, linkcolor={blue!50!black}, citecolor={blue!50!black}, urlcolor={red!50!black}]{hyperref}
+
+\usepackage{mathspec}
+\setmainfont{Libertinus Serif}
+\setsansfont{Libertinus Sans}
+\setmathsfont{Libertinus Math}
+
+\usepackage{biblatex}
+% \addbibresource{refs.bib}
+
+\usepackage{fullpage}
+
+\title{Radial barrier for obstacle avoidance}
+\author{Petter Nilsson \\ \href{mailto:pettni@caltech.edu}{pettni@caltech.edu}}
+
+\begin{document}
+
+\maketitle
+
+\section{Radial transformation}
+
+The hero dynamics are
+\begin{equation}
+	\dot x_h = \beta v_h, \quad \dot v_h = \beta u
+\end{equation}
+and the enemy follows
+\begin{equation}
+	\dot x_e = \beta v_e,
+\end{equation}
+where $\beta$ is the refresh rate of the monitor.
+
+We consider the relative dynamics $x_r = x_h - x_e$ so that $\dot x_r = \beta (v_h - v_e)$ and $\ddot x_r = \beta^2 u$ and the radial transformation $r = \| x_r \|$. The relative radius dynamics become
+\begin{equation}
+\begin{aligned}
+	\dot r & = \frac{\left\langle x_r, \dot x_r \right\rangle}{r}, \\
+	\ddot r & = \frac{\| \dot x_r \|^2}{r} + \frac{\left\langle x_r, \ddot x_r \right\rangle}{r} - \frac{\left\langle x_r, \dot x_r \right\rangle^2}{r^3} = \frac{\| \dot x_r \|^2}{r} + \frac{\left\langle x_r, \ddot x_r \right\rangle}{r} - \frac{\dot r^2}{r}.
+\end{aligned}
+\end{equation}
+
+
+\section{Barrier function}
+
+We consider the system
+\begin{equation}
+	\ddot r = u
+\end{equation}
+which for $u = \bar u$ and $\dot r(0) = -v_0 \leq 0$ has solutions $r(t) = r_0 - v_0 t + \bar u\frac{t^2}{2}$. The minimum is attained for $t^* = v_0/\bar u$ with value $r(t^*) = r_0 -  v_0^2/2 \bar u$. It follows that the barrier for invariance of $\{ r \geq \bar r \}$ is 
+\begin{equation}
+	h(r, \dot r) = r - \frac{\dot r^2}{2 \bar u} - \bar r,
+\end{equation}
+where $\bar u$ is a maximal input.
+
+\section{Barrier constraint}
+
+Instead plugging in $\ddot r$ from above, the constraint to satisfy whenever $\dot r < 0$ becomes
+\begin{equation}
+	\dot h + \alpha h = \alpha h + \dot r + \frac{\dot r^3}{r \bar u} - \frac{\dot r \| \dot x_r\|^2}{r \bar u} - \frac{\dot r \beta^2}{\bar u} \frac{\left\langle x_r, u \right\rangle}{r} \geq 0.
+\end{equation}
+That is, the component $\frac{\left\langle x_r, u \right\rangle}{r}$ of the input along the relative direction must be larger than a lower bound. We can create a minimally invasive safety filter by selecting the closest input that satisfies this inequality.
+
+\end{document}
