@@ -4,14 +4,70 @@
 <head>
   <meta charset='UTF-8'>
   <title>Ultra Square Catcher</title>
-</head>
 
-<body style="text-align: center">
+  <link rel="stylesheet" type="text/css" href="style.css">
+ </head>
+
+<body>
   <canvas width="700" height="700">error</canvas>
-  <div class="checkbox">
-    <label><input id="barrier_btn" type="checkbox" value="">Activate barrier</label>
-    <label><input id="autopilot_btn" type="checkbox" value="">Activate autopilot</label>    
-  </div>
+
+  <table id="autopilot">
+    <tr><td><b>Autopilot</b></td></tr>
+    <tr>
+      <td>
+        <label><input id="autopilot_btn" type="checkbox" value="">Activate</label>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        Proportional gain: 
+        <form name="kp_form">        
+          <input id="kp" type="range" min="1.0" max="30.0" value="3.0" class="slider" step="1.0"  oninput="kp_output.value = kp.value">
+          <output id="kp_output" name="kp_output_name">3.0</output>
+        </form>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        Derivative gain:
+        <form name="kd_form">        
+          <input id="kd" type="range" min="0.1" max="3.0" value="0.6" class="slider" step="0.1"  oninput="kd_output.value = kd.value">
+          <output id="kd_output" name="kd_output_name">0.6</output>
+        </form>
+      </td>
+    </tr>
+  </table>
+
+  <table id="barrier">
+    <tr><td><b>Safety filter</b></td></tr>
+    <tr>
+      <td>
+        <label><input id="barrier_btn" type="checkbox" value="">Activate</label>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        Minimal distance:
+        <form name="rad_form">
+          <input id="rad" name="rad_name" name="rad_slider" type="range" min="0.025" max="0.4" value="0.075" class="slider" step="0.025" oninput="rad_output.value = rad.value">
+          <output id="rad_output" name="rad_output_name">0.075</output>
+        </form>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        Alpha value:
+        <form name="alpha_form">        
+          <input id="alpha" type="range" min="1" max="50" value="10" class="slider" step="1" oninput="alpha_output.value = alpha.value">
+          <output id="alpha_output" name="alpha_output_name">10</output>
+        </form>       
+      </td>
+    </tr>
+  </table>
 
   <script>
     (function () {
@@ -50,6 +106,7 @@
       b_alpha = 10
       kd = 0.6
       kp = 3
+      throttle_autopilot = false
 
       ennemi = {
         x: canvas.width / 2,
@@ -93,10 +150,6 @@
       }
 
       function update() {
-        //distance
-        function distance(hy, hx, ey, ex) {
-          return Math.sqrt(Math.pow(hy - ey, 2) + Math.pow(hx - ex, 2))
-        }
 
         var norme = distance(hero.y, hero.x, ennemi.y, ennemi.x)
 
@@ -118,6 +171,21 @@
         if (autopilot_button)
           autopilot_active = autopilot_button.checked
 
+        // Check sliders
+        var rad_slid = document.getElementById('rad')
+        if (rad_slid)
+          min_radius = rad_slid.value
+        var alpha_slid = document.getElementById('alpha')
+        if (alpha_slid)
+          b_alpha = alpha_slid.value
+        var kp_slid = document.getElementById('kp')
+        if (kp_slid)
+          kp = kp_slid.value
+        var kd_slid = document.getElementById('kd')
+        if (kd_slid)
+          kd = kd_slid.value
+
+
         if (autopilot_active) {
           if (spawn > PowerUpspawnRate)
             autopilot_accel = autopilot(powerUp) 
@@ -129,7 +197,7 @@
         }
 
         // Call barrier
-        if (barrier_active) {
+        if (barrier_active && score >= 10) {
           barrier_accel = barrier(vx, vy)
           hero.speed.x += barrier_accel[0]
           hero.speed.y += barrier_accel[1]
@@ -250,13 +318,17 @@
         vx_rel = refreshrate * (-hero.speed.x) / canvas.width
         vy_rel = refreshrate * (-hero.speed.y) / canvas.width
 
-        return [kp*x_rel + kd*vx_rel, kp*y_rel + kd*vy_rel]
+        ax = kp*x_rel + kd*vx_rel
+        ay = kp*y_rel + kd*vy_rel
+
+        if (throttle_autopilot)
+          return [Math.min(accelerationMax, Math.max(-accelerationMax, ax)), Math.min(accelerationMax, Math.max(-accelerationMax, ay))]
+        else 
+          return [ax, ay]
       }
 
       function barrier(vx_enemy, vy_enemy) {
-        // Parameters
-        var umax = accelerationMax    
-        
+        // Parameters       
         x_rel = (hero.x - ennemi.x) / canvas.width
         y_rel = (hero.y - ennemi.y) / canvas.width
         vx_rel = refreshrate * (hero.speed.x - vx_enemy) / canvas.width
@@ -272,14 +344,14 @@
 
         // Barrier value
         if (dr < 0) {
-          var h = r - Math.pow(dr, 2) / (2 * umax) - min_radius
+          var h = r - Math.pow(dr, 2) / (2 * accelerationMax) - min_radius
 
           // Barrier constraint
-          var a = b_alpha * h + dr + (Math.pow(dr, 3) - dr * Math.pow(norm(x_rel, y_rel), 2)) / (r * umax)
-          var b = -Math.pow(refreshrate, 2)* dr / (umax * canvas.width)
+          var a = b_alpha * h + dr + (Math.pow(dr, 3) - dr * Math.pow(norm(x_rel, y_rel), 2)) / (r * accelerationMax)
+          var b = -Math.pow(refreshrate, 2)* dr / (accelerationMax * canvas.width)
 
           u_r = Math.max(-a/b, u_r)
-          u_r = Math.min(u_r, umax)
+          // u_r = Math.min(u_r, 2*accelerationMax)
         } else {
           var h = 0
         }
